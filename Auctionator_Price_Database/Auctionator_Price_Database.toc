@@ -1,0 +1,6 @@
+﻿## Interface: 30300
+## Title: Auctionator_Price_Database
+## Notes: AH data for Mystic Auctionator
+## OptionalDeps: Auctionator
+## LoadOnDemand: 0
+## SavedVariables: AUCTIONATOR_PRICE_DATABASE
