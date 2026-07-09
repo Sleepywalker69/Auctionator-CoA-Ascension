@@ -378,6 +378,10 @@ local function Atr_SlashCmdFunction(msg)
 
 		Atr_UIDebug();
 
+	elseif (cmd == "catdump") then
+
+		Atr_CategoryDump();
+
 	elseif (cmd == "fsc") then
 
 		if (param1) then
@@ -4789,9 +4793,19 @@ end
 
 -----------------------------------------
 
-local function Atr_BagItem_IsAuctionable (bagID, slotID)
+-- returns: auctionable (bool), ready (bool)
+--   ready=false means the item isn't cached yet so its binding lines aren't in
+--   the tooltip - the caller should retry rather than trust the result
 
-	-- tooltip-scan for soulbound / quest / conjured items
+local function Atr_BagItem_IsAuctionable (bagID, slotID, link)
+
+	-- if the item isn't in the client cache yet, SetBagItem won't have the
+	-- binding lines and a Soulbound item would slip through - defer instead.
+	-- (calling GetItemInfo also queues the item to be cached.)
+
+	if (GetItemInfo (link) == nil) then
+		return false, false;		-- not ready
+	end
 
 	if (Atr_BagScanTooltip == nil) then
 		CreateFrame ("GameTooltip", "Atr_BagScanTooltip", nil, "GameTooltipTemplate");
@@ -4801,17 +4815,29 @@ local function Atr_BagItem_IsAuctionable (bagID, slotID)
 	Atr_BagScanTooltip:ClearLines();
 	Atr_BagScanTooltip:SetBagItem (bagID, slotID);
 
+	local numLines = Atr_BagScanTooltip:NumLines() or 0;
+
+	-- scan every line after the name (line 1); a bound item is unsellable.
+	-- matching "Bound" catches Soulbound / Account Bound / Realm Bound and any
+	-- other custom "* Bound" strings, while the sellable "Binds when picked up /
+	-- equipped" lines say "Binds", not "Bound", so they are correctly ignored.
+
 	local i;
-	for i = 2, 4 do
+	for i = 2, numLines do
 		local fs  = _G["Atr_BagScanTooltipTextLeft"..i];
 		local txt = fs and fs:GetText();
 
-		if (txt == ITEM_SOULBOUND or txt == ITEM_BIND_QUEST or txt == ITEM_CONJURED or txt == ITEM_ACCOUNTBOUND) then
-			return false;
+		if (txt) then
+			if (string.find (txt, "Bound", 1, true)
+				or txt == ITEM_SOULBOUND
+				or txt == ITEM_BIND_QUEST
+				or txt == ITEM_CONJURED) then
+				return false, true;
+			end
 		end
 	end
 
-	return true;
+	return true, true;
 end
 
 -----------------------------------------
@@ -4819,6 +4845,8 @@ end
 local function Atr_BagPanel_BuildList()
 
 	gBagPanelItems = {};
+
+	local anyNotReady = false;
 
 	local bagID;
 
@@ -4832,10 +4860,20 @@ local function Atr_BagPanel_BuildList()
 			local texture, count = GetContainerItemInfo (bagID, slotID);
 			local link = GetContainerItemLink (bagID, slotID);
 
-			if (link and Atr_BagItem_IsAuctionable (bagID, slotID)) then
-				table.insert (gBagPanelItems, { bag=bagID, slot=slotID, texture=texture, count=count });
+			if (link) then
+				local auctionable, ready = Atr_BagItem_IsAuctionable (bagID, slotID, link);
+
+				if (auctionable) then
+					table.insert (gBagPanelItems, { bag=bagID, slot=slotID, texture=texture, count=count });
+				elseif (not ready) then
+					anyNotReady = true;		-- rebuild again shortly once the item caches
+				end
 			end
 		end
+	end
+
+	if (anyNotReady) then
+		gBagPanelDirty = true;
 	end
 
 end
@@ -5045,4 +5083,52 @@ function Atr_UIDebug()
 		end
 	end
 
+end
+
+
+-----------------------------------------
+--  /atr catdump - print the auction category tree the server actually exposes
+--  (class > subclass > slot), so custom categories like "Weapon crafts" can be
+--  verified. If a category the user expects is missing here, the server's
+--  GetAuctionItemSubClasses / GetAuctionInvTypes API does not return it.
+-----------------------------------------
+
+function Atr_CategoryDump()
+
+	local classes = { GetAuctionItemClasses() };
+
+	zc.msg_atr ("Auction category tree ("..#classes.." categories):");
+
+	local c;
+	for c = 1, #classes do
+
+		zc.msg_yellow (c..". "..tostring(classes[c]));
+
+		local subs = { GetAuctionItemSubClasses(c) };
+
+		local s;
+		for s = 1, #subs do
+
+			local invtxt = "";
+
+			if (GetAuctionInvTypes) then
+				local raw = { GetAuctionInvTypes(c, s) };
+				local parts = {};
+				local i = 1;
+				while (i <= #raw) do
+					local nm = raw[i+1];
+					nm = (nm and _G[nm]) or nm or tostring(raw[i]);
+					table.insert (parts, tostring(nm));
+					i = i + 2;
+				end
+				if (#parts > 0) then
+					invtxt = "  [slots: "..table.concat(parts, ", ").."]";
+				end
+			end
+
+			zc.msg ("     "..c.."/"..s.." "..tostring(subs[s])..invtxt);
+		end
+	end
+
+	zc.msg_atr ("(end of category tree)");
 end

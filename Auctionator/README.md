@@ -43,12 +43,17 @@ Upgraded from a single scalar price per item to a rich per-item record, migrated
 - **Results sub-tabs reworked:** *Current* (live auctions) / *History* (the scan database's daily prices for the item) / *Other* (price hints — vendor, disenchant, external data — merged with your own posting history).
 - **"Hide bid-only" checkbox** above the results list (available on every page): filters out auctions with no buyout price so undercut pricing isn't buried in bid-only spam. Toggling rebuilds the current list instantly — no rescan needed — and the setting is remembered across sessions. While active, price recommendations are also based purely on buyout auctions.
 - Smarter fallbacks: with no current auctions, the recommendation is based on scan history, then hints.
+- **Clickable bag panel** with reliable soulbound filtering: items are only listed once cached, and any `* Bound` line (Soulbound, Account Bound, custom **Realm Bound**, etc.) excludes them — while the sellable "Binds when picked up/equipped" state is correctly kept. Uncached slots are retried automatically instead of leaking a bound item into the list.
 - Fork features preserved: Bloodforged/suffix name stripping, stacking preferences, multi-stack posting.
 
 ## Buy tab
 
 - **Exact Match checkbox** — syncs both ways with quoted search text (`"Copper Ore"`).
-- **Advanced search checkbox** opening the category/level dialog.
+- **Advanced search dialog** — now a full category browser:
+  - **Category → Subcategory → Slot** three-level drill-down. The Slot (sub-sub-category) level is populated live from the server's `GetAuctionInvTypes`, so equipment slots like Head, Shoulder, Chest, Trinket, Held-in-Off-Hand appear per subcategory.
+  - **Rarity filter** (Any / Poor … Heirloom, colored) passed as the query's quality index.
+  - Level range and free-text name filter as before.
+  - **Fixed the category round-trip bug:** the dialog previously rebuilt your selection into a `"Armor/Miscellaneous"` text string and re-parsed it *by name*, so any subcategory whose name didn't string-match (or collided with a top-level category like *Miscellaneous*) silently fell back to a useless name search. The selection now drives the query with numeric class/subclass/slot/quality indices directly — no lossy text round-trip — and whatever category tree the server exposes is browsable. (Use `/atr catdump` to print that tree.)
 - **Shopping list upgrades:** *Search for All Items* scans a whole list in one pass (`{ list name }` searches); a full **Manage Shopping Lists** options panel with rename, inline editing, delete, and plain-text **import/export**; unsaved shared lists can be saved with one click. Compact two-per-row list buttons.
 
 ## UI & compatibility
@@ -62,6 +67,7 @@ Upgraded from a single scalar price per item to a rich per-item record, migrated
 | Command | Effect |
 |---|---|
 | `/atr fsc N` | Full-scan analysis chunk size (rows per frame, default 50) |
+| `/atr catdump` | Print the server's auction category tree (class › subclass › slot) |
 | `/atr uidebug` | Print button geometry/state for skin-conflict diagnosis |
 | `/atr clear fullscandb` | Wipe the scan price database |
 | `/atr clear posthistory` | Wipe your posting history |

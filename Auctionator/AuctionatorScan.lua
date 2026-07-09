@@ -128,6 +128,13 @@ function AtrSearch:Init (searchText, IDstring, itemLink, rescanThreshold)
 	self.shopListIndex		= 1;
 	self.shplist			= Atr_GetShoppingListFromSearchText (self.searchText);
 
+	-- an advanced-category search hands us numeric class/subclass/invtype/quality
+	-- indices directly (set by Atr_Adv_Search_Do), so we never re-parse the display
+	-- text into categories by name - that round-trip is what broke Armor/Miscellaneous
+
+	self.advFilter = gAtr_PendingAdvFilter;
+	gAtr_PendingAdvFilter = nil;
+
 	-- bad-data retry state (TSM pattern)
 
 	self.retries			= 0;
@@ -291,11 +298,18 @@ end
 
 function AtrSearch:Start ()
 
-	if (self.searchText == "") then
+	if (self.searchText == "" and not self.advFilter) then
 		return;
 	end
 
-	if (Atr_IsCompoundSearch (self.searchText)) then
+	if (self.advFilter) then
+
+		-- a category search sorts cheapest-per-item ascending like a name search would;
+		-- the readable label carries no parseable meaning so skip the compound checks
+
+		self.sortHow = ATR_SORTBY_PRICE_DES;
+
+	elseif (Atr_IsCompoundSearch (self.searchText)) then
 
 		local _, itemClass = Atr_ParseCompoundSearch (self.searchText);
 
@@ -810,8 +824,34 @@ function AtrSearch:Continue()
 
 		local itemClass		= 0;
 		local itemSubclass	= 0;
+		local invType		= nil;
+		local quality		= nil;
 		local minLevel		= nil;
 		local maxLevel		= nil;
+
+		if (self.advFilter) then
+
+			-- structured category search: use the numeric indices directly
+
+			local af = self.advFilter;
+
+			queryString		= af.text or "";
+			itemClass		= (af.class    and af.class    > 0)  and af.class    or 0;
+			itemSubclass	= (af.subclass and af.subclass > 0)  and af.subclass or 0;
+			invType			= (af.invtype  and af.invtype  > 0)  and af.invtype  or nil;
+			quality			= (af.quality  and af.quality  >= 0) and af.quality  or nil;
+			minLevel		= (af.minLevel and af.minLevel > 0)  and af.minLevel or nil;
+			maxLevel		= (af.maxLevel and af.maxLevel > 0)  and af.maxLevel or nil;
+
+			queryString = zc.UTF8_Truncate (queryString, 63);
+
+			QueryAuctionItems (queryString, minLevel, maxLevel, invType, itemClass, itemSubclass, self.current_page, nil, quality, false);
+
+			self.query_sent_when	= Atr_ptime;
+			self.processing_state	= KM_POSTQUERY;
+			self.current_page		= self.current_page + 1;
+			return;
+		end
 
 		if (self.exact) then
 			local scn = self:GetFirstScan();
@@ -821,7 +861,7 @@ function AtrSearch:Continue()
 
 		if (Atr_IsCompoundSearch(queryString)) then
 
-			queryString, itemClass, itemSubclass, minLevel, maxLevel = Atr_ParseCompoundSearch (queryString);
+			queryString, itemClass, itemSubclass, minLevel, maxLevel, invType = Atr_ParseCompoundSearch (queryString);
 
 		elseif (self.shplist) then
 
@@ -851,7 +891,7 @@ function AtrSearch:Continue()
 
 		queryString = zc.UTF8_Truncate (queryString,63);	-- attempting to reduce number of disconnects
 
-		QueryAuctionItems (queryString, minLevel, maxLevel, nil, itemClass, itemSubclass, self.current_page, nil, nil);
+		QueryAuctionItems (queryString, minLevel, maxLevel, invType, itemClass, itemSubclass, self.current_page, nil, nil);
 
 		self.query_sent_when	= Atr_ptime;
 		self.processing_state	= KM_POSTQUERY;

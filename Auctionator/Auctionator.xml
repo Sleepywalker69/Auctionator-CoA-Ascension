@@ -1340,12 +1340,12 @@
    <!-- Buy Confirmation screen --> 
 
 	<Frame name="Atr_Adv_Search_Dialog" inherits="AuctionatorDialog" toplevel="true" parent="UIParent" frameStrata="FULLSCREEN_DIALOG" enableMouse="true" hidden="true">
-		<Size><AbsDimension x="480" y="320" /></Size>		
+		<Size><AbsDimension x="480" y="390" /></Size>
 		<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="270" y="-160"/></Offset></Anchor></Anchors>
 
 		<Layers>
 			<Layer level="ARTWORK">
-			
+
 				<Texture file="Interface\DialogFrame\UI-DialogBox-Header">
 					<Size x="310" y="64"/>
 					<Anchors><Anchor point="TOP"><Offset x="0" y="12"/></Anchor></Anchors>
@@ -1358,23 +1358,31 @@
 				<FontString name="Atr_AS_Searchtext_Label" inherits="GameFontNormalSmall" text="Search For">
 					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="40" y="-50"/></Offset></Anchor></Anchors>
 				</FontString>
-				
+
 				<FontString name="Atr_AS_Cat_Label" inherits="GameFontNormalSmall" text="Category">
-					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="40" y="-120"/></Offset></Anchor></Anchors>
+					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="40" y="-110"/></Offset></Anchor></Anchors>
 				</FontString>
-				
+
 				<FontString name="Atr_AS_SubCat_Label" inherits="GameFontNormalSmall" text="Subcategory">
-					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="240" y="-120"/></Offset></Anchor></Anchors>
+					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="240" y="-110"/></Offset></Anchor></Anchors>
 				</FontString>
-				
+
+				<FontString name="Atr_AS_Slot_Label" inherits="GameFontNormalSmall" text="Slot">
+					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="40" y="-165"/></Offset></Anchor></Anchors>
+				</FontString>
+
+				<FontString name="Atr_AS_Rarity_Label" inherits="GameFontNormalSmall" text="Rarity">
+					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="240" y="-165"/></Offset></Anchor></Anchors>
+				</FontString>
+
 				<FontString name="Atr_AS_LevRange_Label" inherits="GameFontNormalSmall" text="Level Range">
-					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="40" y="-190"/></Offset></Anchor></Anchors>
+					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="40" y="-225"/></Offset></Anchor></Anchors>
 				</FontString>
-				
-				<FontString name="Atr_AS_LevRange_Label" inherits="GameFontHighlightLarge" text="-">
+
+				<FontString name="Atr_AS_LevRange_Dash" inherits="GameFontHighlightLarge" text="-">
 					<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_AS_LevRange_Label" relativePoint="BOTTOMLEFT"><Offset><AbsDimension x="41" y="-6"/></Offset></Anchor></Anchors>
 				</FontString>
-				
+
 			</Layer>
 		</Layers>
 
@@ -1396,6 +1404,20 @@
 				<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_AS_SubCat_Label" relativePoint="BOTTOMLEFT"><Offset><AbsDimension x="-20" y="-4"/></Offset></Anchor></Anchors>
 				<Scripts>
 					<OnShow> Atr_ASDD_Subclass_OnLoad(self); </OnShow>
+				</Scripts>
+			</Frame>
+
+			<Frame name="Atr_ASDD_Invtype" inherits="UIDropDownMenuTemplate">
+				<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_AS_Slot_Label" relativePoint="BOTTOMLEFT"><Offset><AbsDimension x="-20" y="-4"/></Offset></Anchor></Anchors>
+				<Scripts>
+					<OnShow> Atr_ASDD_Invtype_OnLoad(self); </OnShow>
+				</Scripts>
+			</Frame>
+
+			<Frame name="Atr_ASDD_Quality" inherits="UIDropDownMenuTemplate">
+				<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_AS_Rarity_Label" relativePoint="BOTTOMLEFT"><Offset><AbsDimension x="-20" y="-4"/></Offset></Anchor></Anchors>
+				<Scripts>
+					<OnShow> Atr_ASDD_Quality_OnLoad(self); </OnShow>
 				</Scripts>
 			</Frame>
 
