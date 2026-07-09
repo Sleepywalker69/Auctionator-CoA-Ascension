@@ -302,6 +302,14 @@ end
 
 -----------------------------------------
 
+function Atr_Buy_SetMax()
+
+	Atr_Buy_Confirm_Numstacks:SetNumber (gAtr_Buy_MaxCanBuy or 1);
+	Atr_Buy_Confirm_Update();
+end
+
+-----------------------------------------
+
 function Atr_Buy_NextPage_Or_Cancel(queueIf)
 	if (Atr_Buy_IsComplete()) then
 		Atr_Buy_Cancel();
@@ -382,17 +390,38 @@ end
 -----------------------------------------
 
 function Atr_Buy_Cancel(msg)
-	local runCleanupRefresh = (Atr_ShowingCurrentAuctions and Atr_ShowingCurrentAuctions() and gAtr_Buy_NumBought > 0);
+
+	local boughtCount = gAtr_Buy_NumBought or 0;
 
 	Atr_BuyState = ATR_BUY_NULL;
 	gAtr_Buy_NumUserWants = -1;
 	gAtr_Buy_NumBought = 0;
-	
+
 	Atr_Buy_Confirm_Frame:Hide();
-	
-	if (runCleanupRefresh) then
-		Atr_BuyState = ATR_BUY_WAITING_FOR_AH_CAN_SEND;
-		QueryAuctionItems(zc.UTF8_Truncate(gAtr_Buy_ItemName, 63), "", "", nil, 0, 0, 0, nil, nil);
+
+	-- remove the purchased auctions from the displayed scan and re-render, so a
+	-- stale (already-bought) row can never be clicked and bought again.
+	-- (the old requery-based cleanup left Atr_BuyState non-NULL with nothing to
+	--  consume the response, wedging the state machine AND keeping the stale rows)
+
+	if (boughtCount > 0) then
+
+		local currentPane = Atr_GetCurrentPane and Atr_GetCurrentPane();
+		local scan = currentPane and currentPane.activeScan;
+
+		if (scan and not scan:IsNil()) then
+
+			local n;
+			for n = 1, boughtCount do
+				scan:SubtractScanItem (gAtr_Buy_ItemName, gAtr_Buy_StackSize, gAtr_Buy_BuyoutPrice);
+			end
+
+			scan:CondenseAndSort();
+
+			currentPane.currIndex = nil;
+			Atr_FindBestCurrentAuction();
+			currentPane.UINeedsUpdate = true;
+		end
 	end
 
 	if (msg) then

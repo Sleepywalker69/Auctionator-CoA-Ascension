@@ -381,6 +381,19 @@
 				<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="20" y="-45"/></Offset></Anchor></Anchors>
 				<FontString inherits="ChatFontNormal" bytes="64"/>
 
+				<Frames>
+					<Button name="Atr_Search_ClearBut" inherits="UIPanelCloseButton">
+						<Size><AbsDimension x="20" y="20"/></Size>
+						<Anchors><Anchor point="RIGHT"><Offset><AbsDimension x="4" y="0"/></Offset></Anchor></Anchors>
+						<Scripts>
+							<OnClick>
+								Atr_Search_Box:SetText("");
+								Atr_Search_Box:SetFocus();
+							</OnClick>
+						</Scripts>
+					</Button>
+				</Frames>
+
 				<Scripts>
 					<OnEnterPressed>
 						Atr_Search_Onclick();
@@ -543,14 +556,6 @@
 							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="55" y="-208"/></Offset></Anchor></Anchors>
 						</FontString>
 
-						<FontString name="Atr_Batch_MaxAuctions_Text" inherits="GameFontDarkGraySmall">
-							<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_Batch_Stacksize_Text"><Offset><AbsDimension x="-34" y="-21"/></Offset></Anchor></Anchors>
-						</FontString>
-
-						<FontString name="Atr_Batch_MaxStacksize_Text" inherits="GameFontDarkGraySmall">
-							<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_Batch_Stacksize_Text"><Offset><AbsDimension x="79" y="-21"/></Offset></Anchor></Anchors>
-						</FontString>
-
 						<FontString name="Atr_StartingPriceText" inherits="GameFontHighlightSmall" text="Starting Price" hidden="true">
 							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="13" y="-260"/></Offset></Anchor></Anchors>
 						</FontString>
@@ -668,6 +673,40 @@
 							<OnTabPressed>		Atr_Batch_NumAuctions:SetFocus()	</OnTabPressed>
 						</Scripts>
 					</EditBox>
+
+					<!-- clickable "max: N" hints under each quantity box -->
+
+					<Button name="Atr_Batch_MaxAuctions_Text">
+						<Size><AbsDimension x="74" y="14"/></Size>
+						<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_Batch_Stacksize_Text"><Offset><AbsDimension x="-40" y="-21"/></Offset></Anchor></Anchors>
+						<Scripts>
+							<OnClick>Atr_SellSetMaxAuctions();</OnClick>
+							<OnEnter>
+								GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+								GameTooltip:SetText(gAtr_ZT and gAtr_ZT("Click to post the maximum number of stacks") or "Click to post the maximum number of stacks");
+								GameTooltip:Show();
+							</OnEnter>
+							<OnLeave>GameTooltip:Hide();</OnLeave>
+						</Scripts>
+						<NormalFont style="GameFontDarkGraySmall"/>
+						<HighlightFont style="GameFontHighlightSmall"/>
+					</Button>
+
+					<Button name="Atr_Batch_MaxStacksize_Text">
+						<Size><AbsDimension x="74" y="14"/></Size>
+						<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_Batch_Stacksize_Text"><Offset><AbsDimension x="73" y="-21"/></Offset></Anchor></Anchors>
+						<Scripts>
+							<OnClick>Atr_SellSetMaxStacksize();</OnClick>
+							<OnEnter>
+								GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+								GameTooltip:SetText(gAtr_ZT and gAtr_ZT("Click to use the full stack size") or "Click to use the full stack size");
+								GameTooltip:Show();
+							</OnEnter>
+							<OnLeave>GameTooltip:Hide();</OnLeave>
+						</Scripts>
+						<NormalFont style="GameFontDarkGraySmall"/>
+						<HighlightFont style="GameFontHighlightSmall"/>
+					</Button>
 					
 					<Button name="Atr_CreateAuctionButton" inherits="UIPanelButtonTemplate"  text="Create Auction" disabled="true">
 						<Size><AbsDimension x="185" y="30"/>	</Size>
@@ -1042,7 +1081,7 @@
    <!-- Buy Confirmation screen --> 
 
 	<Frame name="Atr_Buy_Confirm_Frame" inherits="AuctionatorDialog" toplevel="true" parent="UIParent" frameStrata="FULLSCREEN_DIALOG" enableMouse="true" hidden="true">
-		<Size><AbsDimension x="390" y="180" /></Size>		
+		<Size><AbsDimension x="430" y="180" /></Size>
 		<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="270" y="-290"/></Offset></Anchor></Anchors>
 
 		<Scripts>
@@ -1078,7 +1117,7 @@
 						</FontString>
 
 						<FontString name="Atr_Buy_Confirm_Text2" inherits="GameFontNormal" text="stacks for:">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="160" y="-79"/></Offset></Anchor></Anchors>
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="204" y="-79"/></Offset></Anchor></Anchors>
 						</FontString>
 					</Layer>
 				</Layers>
@@ -1086,7 +1125,7 @@
 				<Frames>
 					<Frame name="Atr_Buy_Confirm_TotalPrice" inherits="SmallMoneyFrameTemplate">
 						<Size><AbsDimension x="125" y="16" /></Size>
-						<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_Buy_Confirm_Text1"><Offset><AbsDimension x="160" y="2"/></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_Buy_Confirm_Text1"><Offset><AbsDimension x="204" y="2"/></Offset></Anchor></Anchors>
 						<Scripts><OnLoad>AuctionatorMoneyFrame_OnLoad();</OnLoad></Scripts>
 					</Frame>
 
@@ -1100,6 +1139,14 @@
 						</Anchors>
 						<FontString inherits="ChatFontNormal" bytes="64" justifyH="CENTER" />
 					</EditBox>
+
+					<Button name="Atr_Buy_Confirm_MaxBut" inherits="UIPanelButtonTemplate" text="Max">
+						<Size><AbsDimension x="38" y="18"/></Size>
+						<Anchors><Anchor point="LEFT" relativeTo="Atr_Buy_Confirm_Numstacks" relativePoint="RIGHT"><Offset><AbsDimension x="4" y="0"/></Offset></Anchor></Anchors>
+						<Scripts>
+							<OnClick>Atr_Buy_SetMax();</OnClick>
+						</Scripts>
+					</Button>
 				</Frames>
 			</Frame>
 
@@ -1391,6 +1438,18 @@
 			<EditBox name="Atr_AS_Searchtext" autoFocus="false" inherits="InputBoxTemplate">
 				<Size><AbsDimension x="240" y="20"/></Size>
 				<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_AS_Searchtext_Label" relativePoint="BOTTOMLEFT"><Offset><AbsDimension x="2" y="-4"/></Offset></Anchor></Anchors>
+				<Frames>
+					<Button name="Atr_AS_Searchtext_ClearBut" inherits="UIPanelCloseButton">
+						<Size><AbsDimension x="20" y="20"/></Size>
+						<Anchors><Anchor point="RIGHT"><Offset><AbsDimension x="4" y="0"/></Offset></Anchor></Anchors>
+						<Scripts>
+							<OnClick>
+								Atr_AS_Searchtext:SetText("");
+								Atr_AS_Searchtext:SetFocus();
+							</OnClick>
+						</Scripts>
+					</Button>
+				</Frames>
 			</EditBox>
 
 			<Frame name="Atr_ASDD_Class" inherits="UIDropDownMenuTemplate">

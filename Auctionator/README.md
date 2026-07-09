@@ -55,6 +55,10 @@ Upgraded from a single scalar price per item to a rich per-item record, migrated
   - Level range and free-text name filter as before.
   - **Fixed the category round-trip bug:** the dialog previously rebuilt your selection into a `"Armor/Miscellaneous"` text string and re-parsed it *by name*, so any subcategory whose name didn't string-match (or collided with a top-level category like *Miscellaneous*) silently fell back to a useless name search. The selection now drives the query with numeric class/subclass/slot/quality indices directly — no lossy text round-trip — and whatever category tree the server exposes is browsable. (Use `/atr catdump` to print that tree.)
 - **Shopping list upgrades:** *Search for All Items* scans a whole list in one pass (`{ list name }` searches); a full **Manage Shopping Lists** options panel with rename, inline editing, delete, and plain-text **import/export**; unsaved shared lists can be saved with one click. Compact two-per-row list buttons.
+- **Buying quality-of-life:**
+  - **Max button** on the buy-confirm dialog sets the quantity to every matching auction in one click.
+  - **Bought auctions disappear from the results list immediately.** Previously a purchased auction stayed in the list as a stale row; clicking Buy on it wedged the buy engine and blocked further list updates until reload. Purchases now subtract from the local scan data and the list re-renders — no follow-up server query needed.
+  - **Clear (✕) buttons** on the Buy tab search bar and the Advanced dialog's text field.
 
 ## UI & compatibility
 

@@ -2134,6 +2134,26 @@ function Atr_NumAuctionsChangedFunc (x)
 	gSellPane.UINeedsUpdate = true;
 end
 
+-----------------------------------------
+
+function Atr_SellSetMaxStacksize ()
+
+	if (gCurrentPane and gCurrentPane.fullStackSize and gCurrentPane.fullStackSize > 0) then
+		Atr_SetStackSize (gCurrentPane.fullStackSize);		-- fires Atr_StackSizeChangedFunc, which refreshes the max-auctions hint
+	end
+end
+
+-----------------------------------------
+
+function Atr_SellSetMaxAuctions ()
+
+	local ss = Atr_StackSize();
+
+	if (gCurrentPane and gCurrentPane.totalItems and ss and ss > 0) then
+		Atr_Batch_NumAuctions:SetText (math.floor (gCurrentPane.totalItems / ss));
+	end
+end
+
 
 -----------------------------------------
 
