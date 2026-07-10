@@ -2139,7 +2139,22 @@ end
 function Atr_SellSetMaxStacksize ()
 
 	if (gCurrentPane and gCurrentPane.fullStackSize and gCurrentPane.fullStackSize > 0) then
-		Atr_SetStackSize (gCurrentPane.fullStackSize);		-- fires Atr_StackSizeChangedFunc, which refreshes the max-auctions hint
+
+		-- cap at what you actually own divided by the number of stacks, not the
+		-- item's full stack size (16 linen as 2 stacks -> stack size of 8)
+
+		local maxSS     = gCurrentPane.fullStackSize;
+		local numStacks = Atr_Batch_NumAuctions:GetNumber();
+
+		if (numStacks > 0 and gCurrentPane.totalItems) then
+			maxSS = math.min (maxSS, math.floor (gCurrentPane.totalItems / numStacks));
+		end
+
+		if (maxSS < 1) then
+			maxSS = 1;
+		end
+
+		Atr_SetStackSize (maxSS);		-- fires Atr_StackSizeChangedFunc, which refreshes the max-auctions hint
 	end
 end
 
@@ -2480,6 +2495,15 @@ function Atr_OnNewAuctionUpdate()
 			gSellPane.totalItems	= Atr_GetNumItemInBags (auctionItemName, bloodforged);
 			gSellPane.fullStackSize = auctionLink and (select (8, GetItemInfo (auctionLink))) or 0;
 
+			-- the bag re-scan can miss (name-match/formatting quirks on custom items),
+			-- which wrongly shows "max: 0" and greys out Create Auction even though the
+			-- item is sitting in the sell slot. fall back to the count the game itself
+			-- reports for the placed stack so a valid post is never blocked.
+
+			if ((gSellPane.totalItems == nil or gSellPane.totalItems == 0) and auctionCount and auctionCount > 0) then
+				gSellPane.totalItems = auctionCount;
+			end
+
 			local prefNumStacks, prefStackSize = Atr_GetSellStacking (auctionLink, auctionCount, gSellPane.totalItems);
 
 			if (time() - gAutoSingleton < 5) then
@@ -2631,8 +2655,16 @@ function Atr_UpdateUI_SellPane (needsUpdate)
 				maxAuctions = math.floor (gCurrentPane.totalItems / Atr_StackSize());
 			end
 
+			-- max stack size given how many stacks you are posting, never more than
+			-- the full stack size or what you actually own (16 linen as 2 stacks -> 8)
+			local maxStacksize = gCurrentPane.fullStackSize or 0;
+			local numStacks    = Atr_Batch_NumAuctions:GetNumber();
+			if (numStacks > 0 and gCurrentPane.totalItems) then
+				maxStacksize = math.min (maxStacksize, math.floor (gCurrentPane.totalItems / numStacks));
+			end
+
 			Atr_Batch_MaxAuctions_Text:SetText (ZT("max")..": "..maxAuctions);
-			Atr_Batch_MaxStacksize_Text:SetText (ZT("max")..": "..gCurrentPane.fullStackSize);
+			Atr_Batch_MaxStacksize_Text:SetText (ZT("max")..": "..maxStacksize);
 
 			Atr_SetDepositText();
 		end
@@ -3576,7 +3608,7 @@ function Atr_GetNumItemInBags (theItemName, bloodforged)
 				local itemName				= GetItemInfo(itemLink);
 				local texture, itemCount	= GetContainerItemInfo(bagID, slotID);
 
-				if (itemName == theItemName) then
+				if (itemName and zc.StringSame (itemName, theItemName)) then
 					numItems = numItems + itemCount;
 				end
 			end
