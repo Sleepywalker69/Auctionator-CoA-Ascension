@@ -891,6 +891,7 @@
 			</Button>
 
 
+
 			<ScrollFrame name="AuctionatorScrollFrame" inherits="FauxScrollFrameTemplate">
 				<Size><AbsDimension x="588" y="196"/></Size>
 				<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="0" y="-213"/></Offset></Anchor></Anchors>
@@ -991,6 +992,21 @@
 				<Scripts>
 					<OnShow>	Atr_HideBidOnly_OnShow ();	</OnShow>
 					<OnClick>	Atr_HideBidOnly_Onclick ();	</OnClick>
+				</Scripts>
+			</CheckButton>
+			<CheckButton name="Atr_Chain_Buy_Button" inherits="UICheckButtonTemplate" hidden="true">
+				<Size><AbsDimension x="20" y="20" /></Size>
+				<Anchors><Anchor point="LEFT" relativeTo="Atr_HideBidOnly_Button" relativePoint="RIGHT"><Offset><AbsDimension x="100" y="0"/></Offset></Anchor></Anchors>
+				<Layers>
+					<Layer level="BACKGROUND">
+						<FontString inherits="GameFontNormalSmall" text="Chain Buy">
+							<Anchors><Anchor point="LEFT" relativePoint="RIGHT"><Offset><AbsDimension x="2" y="1"/></Offset></Anchor></Anchors>
+						</FontString>
+					</Layer>
+				</Layers>
+				<Scripts>
+					<OnShow>	Atr_ChainBuy_OnShow ();	</OnShow>
+					<OnClick>	Atr_ChainBuy_Toggle ();	</OnClick>
 				</Scripts>
 			</CheckButton>
 
@@ -1095,6 +1111,10 @@
 				<FontString name="Atr_Buy_Confirm_ItemName" inherits="GameFontNormal">
 					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="40" y="-34"/></Offset></Anchor></Anchors>
 				</FontString>
+
+				<FontString name="Atr_Buy_Chain_Text" inherits="GameFontHighlightSmall" justifyH="LEFT" hidden="true">
+					<Anchors><Anchor point="BOTTOMLEFT"><Offset><AbsDimension x="30" y="31"/></Offset></Anchor></Anchors>
+				</FontString>
 			</Layer>
 		</Layers>
 
@@ -1170,7 +1190,7 @@
 				<Anchors><Anchor point="BOTTOMRIGHT"><Offset><AbsDimension x="-20" y="25"/></Offset></Anchor></Anchors>
 				<Scripts>
 					<OnClick>
-						Atr_Buy_Cancel();
+						Atr_Buy_Cancel(nil, true);
 					</OnClick>
 				</Scripts>
 			</Button>

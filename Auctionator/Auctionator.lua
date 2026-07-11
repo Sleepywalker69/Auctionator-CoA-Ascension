@@ -29,6 +29,7 @@ AUCTIONATOR_DB_MAXITEM_AGE	= 180;
 AUCTIONATOR_DB_MAXHIST_AGE	= 21;	-- obsolete - just needed for migration
 AUCTIONATOR_DB_MAXHIST_DAYS	= 5;
 AUCTIONATOR_HIDE_BIDONLY	= 0;
+AUCTIONATOR_CHAIN_BUY		= 0;
 
 AUCTIONATOR_OPEN_FIRST		= 0;	-- obsolete - just needed for migration
 AUCTIONATOR_OPEN_BUY		= 0;	-- obsolete - just needed for migration
@@ -933,6 +934,7 @@ function Atr_AuctionFrameTab_OnClick (self, index, down)
 		Atr_MngSListsButton:Hide();
 		Atr_SaveThisList_Button:Hide();
 		Atr_ActiveItems_Text:Hide();
+		Atr_Chain_Buy_Button:Hide();
 		Atr_DropDown1:Hide();
 		Atr_DropDownSL:Hide();
 		Atr_CheckActiveButton:Hide();
@@ -983,6 +985,7 @@ function Atr_AuctionFrameTab_OnClick (self, index, down)
 			Atr_DelSListButton:Show();
 			Atr_SrchSListButton:Show();
 			Atr_MngSListsButton:Show();
+			Atr_Chain_Buy_Button:Show();
 			Atr_DropDownSL:Show();
 			Atr_Hlist:SetHeight (252);
 			Atr_Hlist_ScrollFrame:SetHeight (252);
