@@ -44,6 +44,8 @@ Upgraded from a single scalar price per item to a rich per-item record, migrated
 - **"Hide bid-only" checkbox** above the results list (available on every page): filters out auctions with no buyout price so undercut pricing isn't buried in bid-only spam. Toggling rebuilds the current list instantly — no rescan needed — and the setting is remembered across sessions. While active, price recommendations are also based purely on buyout auctions.
 - Smarter fallbacks: with no current auctions, the recommendation is based on scan history, then hints.
 - **Clickable bag panel** with reliable soulbound filtering: items are only listed once cached, and any `* Bound` line (Soulbound, Account Bound, custom **Realm Bound**, etc.) excludes them — while the sellable "Binds when picked up/equipped" state is correctly kept. Uncached slots are retried automatically instead of leaking a bound item into the list.
+- **Rarity-aware variant handling:** same-named variants (e.g. Bloodforged items that exist as rare *and* epic) no longer blend together — result rows are color-coded by rarity, the price recommendation prefers auctions matching *your* item's rarity, and buying matches rarity exactly.
+- **"My rarity only" toggle** (Sell tab, next to *Hide bid-only*): hides same-named auctions of a different rarity from the list entirely while selling — your own listings always stay visible. Persisted across sessions.
 - Fork features preserved: Bloodforged/suffix name stripping, stacking preferences, multi-stack posting.
 
 ## Buy tab

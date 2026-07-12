@@ -580,7 +580,7 @@ function AtrSearch:AnalyzeResultsPage()
 
 				local scn = self.items[name];
 
-				scn:AddScanItem (name, count, buyoutPrice, owner, 1, curpage);
+				scn:AddScanItem (name, count, buyoutPrice, owner, 1, curpage, ax.quality);
 
 				if (scn.itemLink == nil or self.itemClass == nil) then
 					scn:UpdateItemLink (ax.itemLink);
@@ -622,7 +622,7 @@ end
 
 -----------------------------------------
 
-function AtrScan:AddScanItem (name, stackSize, buyoutPrice, owner, numAuctions, curpage)
+function AtrScan:AddScanItem (name, stackSize, buyoutPrice, owner, numAuctions, curpage, quality)
 
 	local sd = {};
 
@@ -635,6 +635,7 @@ function AtrScan:AddScanItem (name, stackSize, buyoutPrice, owner, numAuctions, 
 		sd["buyoutPrice"]	= buyoutPrice;
 		sd["owner"]			= owner;
 		sd["pagenum"]		= curpage;
+		sd["quality"]		= quality;		-- same-named variants (e.g. Bloodforged) can differ in rarity
 		sd["enchantID"]		= enchantID
 
 		tinsert (self.scanData, sd);
@@ -1077,9 +1078,19 @@ function AtrScan:CondenseAndSort ()
 
 	local conddata = {};
 
+	-- "My rarity only": while selling, optionally hide same-named auctions of a
+	-- different rarity (Bloodforged variants can be rare or epic); rows with
+	-- unknown rarity are kept
+
+	local rarityFilter = nil;
+	if (AUCTIONATOR_MATCH_RARITY == 1 and Atr_IsModeCreateAuction and Atr_IsModeCreateAuction() and gSellPane and gSellPane.sellItemQuality) then
+		rarityFilter = gSellPane.sellItemQuality;
+	end
+
 	for i,sd in ipairs (self.scanData) do
 
 	  if (AUCTIONATOR_HIDE_BIDONLY ~= 1 or (sd.buyoutPrice and sd.buyoutPrice > 0)) then	-- optionally skip bid-only auctions
+	  if (rarityFilter == nil or sd.quality == nil or sd.quality == rarityFilter or sd.owner == UnitName("player")) then	-- optionally keep only the sold item's rarity (always keep your own)
 
 		local ownerCode = "x";
 		local dataType  = "n";		-- normal
@@ -1100,7 +1111,7 @@ function AtrScan:CondenseAndSort ()
 			dataType = "a";
 		end
 
-		local key = "_"..sd.stackSize.."_"..sd.buyoutPrice.."_"..ownerCode..dataType;
+		local key = "_"..sd.stackSize.."_"..sd.buyoutPrice.."_"..ownerCode..dataType.."_"..(sd.quality or -1);
 
 		if (conddata[key]) then
 			conddata[key].count		= conddata[key].count + 1;
@@ -1112,6 +1123,7 @@ function AtrScan:CondenseAndSort ()
 			data.stackSize 		= sd.stackSize;
 			data.buyoutPrice	= sd.buyoutPrice;
 			data.itemPrice		= sd.buyoutPrice / sd.stackSize;
+			data.quality		= sd.quality;
 			data.minpage		= sd.pagenum;
 			data.maxpage		= sd.pagenum;
 			data.count			= 1;
@@ -1129,6 +1141,7 @@ function AtrScan:CondenseAndSort ()
 			conddata[key] = data;
 		end
 
+	  end	-- AUCTIONATOR_MATCH_RARITY
 	  end	-- AUCTIONATOR_HIDE_BIDONLY
 
 	end
@@ -1289,6 +1302,29 @@ function AtrScan:FindCheapest ()
 	end
 
 	return index;
+
+end
+
+-----------------------------------------
+
+function AtrScan:FindCheapestOfQuality (quality)
+
+	-- cheapest auction of a specific rarity; same-named variants (Bloodforged)
+	-- can be rare OR epic, and selling an epic should not undercut the rares
+
+	if (quality == nil) then
+		return nil;
+	end
+
+	local j;
+	for j = 1,#self.sortedData do
+		local sd = self.sortedData[j];
+		if (sd.itemPrice > 0 and sd.type == "n" and sd.quality == quality) then
+			return j;
+		end
+	end
+
+	return nil;
 
 end
 

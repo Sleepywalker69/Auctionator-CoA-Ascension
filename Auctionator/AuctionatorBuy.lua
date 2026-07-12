@@ -14,6 +14,7 @@ local Atr_BuyState = ATR_BUY_NULL;
 local gAtr_Buy_BuyoutPrice  = 0;
 local gAtr_Buy_ItemName     = "";
 local gAtr_Buy_StackSize    = 1;
+local gAtr_Buy_Quality      = nil;	-- same-named variants (Bloodforged) can differ in rarity
 local gAtr_Buy_NumBought    = 0;  
 local gAtr_Buy_NumUserWants = -1; 
 local gAtr_Buy_MaxCanBuy    = 0;
@@ -153,6 +154,7 @@ function Atr_Buy1_Onclick ()
 	gAtr_Buy_BuyoutPrice	= data.buyoutPrice;
 	gAtr_Buy_ItemName		= scan.itemName;
 	gAtr_Buy_StackSize		= data.stackSize;
+	gAtr_Buy_Quality		= data.quality;
 	gAtr_Buy_MaxCanBuy		= data.count;
 	gAtr_Buy_Pass			= 1;
 	
@@ -344,13 +346,17 @@ function Atr_Buy_CountMatches(andBuy)
 	local i = 1; 
 
 	while (true) do
-		local name, _, count, _, _, _, _, _, buyoutPrice, _ = GetAuctionItemInfo("list", i);
+		local name, _, count, quality, _, _, _, _, buyoutPrice, _ = GetAuctionItemInfo("list", i);
 
 		if (name == nil) then
 			break;
 		end
 
-		if (zc.StringSame(name, gAtr_Buy_ItemName) and buyoutPrice == gAtr_Buy_BuyoutPrice and count == gAtr_Buy_StackSize) then
+		-- quality must match too: a rare and an epic Bloodforged variant can share
+		-- name, price and stack size, and clicking the epic must never buy the rare
+
+		if (zc.StringSame(name, gAtr_Buy_ItemName) and buyoutPrice == gAtr_Buy_BuyoutPrice and count == gAtr_Buy_StackSize
+			and (gAtr_Buy_Quality == nil or quality == nil or quality == gAtr_Buy_Quality)) then
 			numMatches = numMatches + 1;
 
 			if (andBuy) then

@@ -1010,6 +1010,25 @@
 				</Scripts>
 			</CheckButton>
 
+			<!-- occupies the same slot as Chain Buy: that one is Buy-tab-only and
+			     this one is Sell-tab-only, so they can never stack -->
+
+			<CheckButton name="Atr_MatchRarity_Button" inherits="UICheckButtonTemplate" hidden="true">
+				<Size><AbsDimension x="20" y="20" /></Size>
+				<Anchors><Anchor point="LEFT" relativeTo="Atr_HideBidOnly_Button" relativePoint="RIGHT"><Offset><AbsDimension x="100" y="0"/></Offset></Anchor></Anchors>
+				<Layers>
+					<Layer level="BACKGROUND">
+						<FontString inherits="GameFontNormalSmall" text="My rarity only">
+							<Anchors><Anchor point="LEFT" relativePoint="RIGHT"><Offset><AbsDimension x="2" y="1"/></Offset></Anchor></Anchors>
+						</FontString>
+					</Layer>
+				</Layers>
+				<Scripts>
+					<OnShow>	Atr_MatchRarity_OnShow ();	</OnShow>
+					<OnClick>	Atr_MatchRarity_Onclick ();	</OnClick>
+				</Scripts>
+			</CheckButton>
+
 			<Frame name="Atr_ListTabs" hidden="true">
 				<Size><AbsDimension x="250" y="40"/></Size>
 				<Anchors><Anchor point="BOTTOMRIGHT" relativeTo="Atr_HeadingsBar" relativePoint="TOPRIGHT"><Offset><AbsDimension x="0" y="-22"/></Offset></Anchor></Anchors>
