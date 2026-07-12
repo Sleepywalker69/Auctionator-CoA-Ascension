@@ -30,6 +30,7 @@ AUCTIONATOR_DB_MAXHIST_AGE	= 21;	-- obsolete - just needed for migration
 AUCTIONATOR_DB_MAXHIST_DAYS	= 5;
 AUCTIONATOR_HIDE_BIDONLY	= 0;
 AUCTIONATOR_CHAIN_BUY		= 0;
+AUCTIONATOR_MATCH_RARITY	= 0;
 
 AUCTIONATOR_OPEN_FIRST		= 0;	-- obsolete - just needed for migration
 AUCTIONATOR_OPEN_BUY		= 0;	-- obsolete - just needed for migration
@@ -935,6 +936,7 @@ function Atr_AuctionFrameTab_OnClick (self, index, down)
 		Atr_SaveThisList_Button:Hide();
 		Atr_ActiveItems_Text:Hide();
 		Atr_Chain_Buy_Button:Hide();
+		Atr_MatchRarity_Button:Hide();
 		Atr_DropDown1:Hide();
 		Atr_DropDownSL:Hide();
 		Atr_CheckActiveButton:Hide();
@@ -944,6 +946,7 @@ function Atr_AuctionFrameTab_OnClick (self, index, down)
 
 		if (index == Atr_FindTabIndex(SELL_TAB)) then
 			Atr_SellControls:Show();
+			Atr_MatchRarity_Button:Show();
 			if (Atr_BagPanel) then
 				Atr_BagPanel:Show();
 			end
@@ -1310,7 +1313,9 @@ function Atr_AddToScan (itemName, stackSize, buyoutPrice, numAuctions)
 
 	local scan = Atr_FindScan (itemName);
 
-	scan:AddScanItem (itemName, stackSize, buyoutPrice, UnitName("player"), numAuctions);
+	local quality = gJustPosted_ItemLink and select (3, GetItemInfo (gJustPosted_ItemLink)) or gSellPane.sellItemQuality;
+
+	scan:AddScanItem (itemName, stackSize, buyoutPrice, UnitName("player"), numAuctions, nil, quality, gJustPosted_ItemLink);
 
 	scan:CondenseAndSort ();
 
@@ -2043,7 +2048,7 @@ function Atr_UpdateRecommendation (updatePrices)
 	Atr_Recommend_Text:SetText (ZT("Recommended Buyout Price"));
 	Atr_RecommendPerStack_Text:SetText (string.format (ZT("for your stack of %d"), Atr_StackSize()));
 
-	Atr_SetTextureButton ("Atr_RecommendItem_Tex", Atr_StackSize(), scn.itemLink);
+	Atr_SetTextureButton ("Atr_RecommendItem_Tex", Atr_StackSize(), (basedata and basedata.link) or scn.itemLink);
 
 	MoneyFrame_Update ("Atr_RecommendPerItem_Price",  zc.round(new_Item_BuyoutPrice));
 	MoneyFrame_Update ("Atr_RecommendPerStack_Price", zc.round(new_Item_BuyoutPrice * Atr_StackSize()));
@@ -2210,7 +2215,20 @@ end
 
 function Atr_ShowRecTooltip ()
 
-	local link = gCurrentPane.activeScan.itemLink;
+	-- prefer the exact item of the SELECTED auction row, so same-named
+	-- variants (rarity/level) show the right tooltip
+
+	local scan = gCurrentPane.activeScan;
+	local link = nil;
+
+	if (scan and scan.sortedData and gCurrentPane.currIndex and scan.sortedData[gCurrentPane.currIndex]) then
+		link = scan.sortedData[gCurrentPane.currIndex].link;
+	end
+
+	if (not link and scan) then
+		link = scan.itemLink;
+	end
+
 	local num  = Atr_StackSize();
 
 	if (not link) then
@@ -2498,6 +2516,11 @@ function Atr_OnNewAuctionUpdate()
 			gSellPane.totalItems	= Atr_GetNumItemInBags (auctionItemName, bloodforged);
 			gSellPane.fullStackSize = auctionLink and (select (8, GetItemInfo (auctionLink))) or 0;
 
+			-- rarity of the item actually being sold: same-named variants (Bloodforged)
+			-- can be rare OR epic, and the recommendation must compare like with like
+
+			gSellPane.sellItemQuality = select (4, GetAuctionSellItemInfo());
+
 			-- the bag re-scan can miss (name-match/formatting quirks on custom items),
 			-- which wrongly shows "max: 0" and greys out Create Auction even though the
 			-- item is sitting in the sell slot. fall back to the count the game itself
@@ -2516,6 +2539,14 @@ function Atr_OnNewAuctionUpdate()
 			end
 
 			if (cacheHit) then
+
+				-- a cached scan was condensed under the PREVIOUS item's rarity filter;
+				-- re-condense so "My rarity only" reflects the item now being sold
+
+				if (AUCTIONATOR_MATCH_RARITY == 1 and gSellPane.activeScan and not gSellPane.activeScan:IsNil()) then
+					gSellPane.activeScan:CondenseAndSort();
+				end
+
 				Atr_OnSearchComplete ();
 			end
 
@@ -2935,6 +2966,32 @@ end
 
 -----------------------------------------
 
+function Atr_MatchRarity_OnShow ()
+
+	Atr_MatchRarity_Button:SetChecked (AUCTIONATOR_MATCH_RARITY == 1);
+end
+
+-----------------------------------------
+
+function Atr_MatchRarity_Onclick ()
+
+	AUCTIONATOR_MATCH_RARITY = Atr_MatchRarity_Button:GetChecked() and 1 or 0;
+
+	PlaySound("igMainMenuOptionCheckBoxOn");
+
+	-- rebuild the displayed list from the raw scan data with the new filter
+
+	if (gCurrentPane and gCurrentPane.activeScan and not gCurrentPane.activeScan:IsNil()) then
+		gCurrentPane.activeScan:CondenseAndSort();
+
+		gCurrentPane.currIndex = nil;
+		Atr_FindBestCurrentAuction();
+		gCurrentPane.UINeedsUpdate = true;
+	end
+end
+
+-----------------------------------------
+
 function Atr_HideBidOnly_Onclick ()
 
 	AUCTIONATOR_HIDE_BIDONLY = Atr_HideBidOnly_Button:GetChecked() and 1 or 0;
@@ -3274,16 +3331,31 @@ function Atr_ShowCurrentAuctions()
 
 				lineEntry:Show();
 
+				-- hovering a row shows the tooltip of THAT auction's exact item,
+				-- so same-named variants (rarity/level) can be compared directly
+
+				lineEntry.itemLink = data.link or gCurrentPane.activeScan.itemLink;
+
 				if (data.count == 1) then
 					entrytext = string.format ("%i %s %i", data.count, ZT ("stack of"), data.stackSize);
 				else
 					entrytext = string.format ("%i %s %i", data.count, ZT ("stacks of"), data.stackSize);
 				end
 
-				lineEntry_text:SetTextColor (0.6, 0.6, 0.6);
+				-- dim rows whose stack size doesn't match yours (sell pane only);
+				-- color by rarity so same-named variants (Bloodforged rare vs epic)
+				-- are distinguishable at a glance
 
+				local dim = 0.6;
 				if ( data.stackSize == Atr_StackSize() or Atr_StackSize() == 0 or gCurrentPane ~= gSellPane) then
-					lineEntry_text:SetTextColor (1.0, 1.0, 1.0);
+					dim = 1.0;
+				end
+
+				local qc = data.quality and data.quality ~= 1 and ITEM_QUALITY_COLORS[data.quality];
+				if (qc) then
+					lineEntry_text:SetTextColor (qc.r * dim, qc.g * dim, qc.b * dim);
+				else
+					lineEntry_text:SetTextColor (dim, dim, dim);
 				end
 
 				if (data.yours) then
@@ -3481,7 +3553,14 @@ function Atr_FindBestCurrentAuction()
 
 	local scan = gCurrentPane.activeScan;
 
-	if		(Atr_IsModeCreateAuction()) then	gCurrentPane.currIndex = scan:FindCheapest ();
+	if (Atr_IsModeCreateAuction()) then
+
+		-- prefer the cheapest auction of the SAME rarity as the item being sold
+		-- (same-named Bloodforged variants can be rare or epic); fall back to
+		-- the overall cheapest when no same-rarity auction exists
+
+		gCurrentPane.currIndex = scan:FindCheapestOfQuality (gCurrentPane.sellItemQuality) or scan:FindCheapest ();
+
 	elseif	(Atr_IsModeBuy()) then				gCurrentPane.currIndex = scan:FindCheapest ();
 	else										gCurrentPane.currIndex = scan:FindMatchByYours ();
 	end
