@@ -1315,7 +1315,7 @@ function Atr_AddToScan (itemName, stackSize, buyoutPrice, numAuctions)
 
 	local quality = gJustPosted_ItemLink and select (3, GetItemInfo (gJustPosted_ItemLink)) or gSellPane.sellItemQuality;
 
-	scan:AddScanItem (itemName, stackSize, buyoutPrice, UnitName("player"), numAuctions, nil, quality);
+	scan:AddScanItem (itemName, stackSize, buyoutPrice, UnitName("player"), numAuctions, nil, quality, gJustPosted_ItemLink);
 
 	scan:CondenseAndSort ();
 
@@ -2048,7 +2048,7 @@ function Atr_UpdateRecommendation (updatePrices)
 	Atr_Recommend_Text:SetText (ZT("Recommended Buyout Price"));
 	Atr_RecommendPerStack_Text:SetText (string.format (ZT("for your stack of %d"), Atr_StackSize()));
 
-	Atr_SetTextureButton ("Atr_RecommendItem_Tex", Atr_StackSize(), scn.itemLink);
+	Atr_SetTextureButton ("Atr_RecommendItem_Tex", Atr_StackSize(), (basedata and basedata.link) or scn.itemLink);
 
 	MoneyFrame_Update ("Atr_RecommendPerItem_Price",  zc.round(new_Item_BuyoutPrice));
 	MoneyFrame_Update ("Atr_RecommendPerStack_Price", zc.round(new_Item_BuyoutPrice * Atr_StackSize()));
@@ -2215,7 +2215,20 @@ end
 
 function Atr_ShowRecTooltip ()
 
-	local link = gCurrentPane.activeScan.itemLink;
+	-- prefer the exact item of the SELECTED auction row, so same-named
+	-- variants (rarity/level) show the right tooltip
+
+	local scan = gCurrentPane.activeScan;
+	local link = nil;
+
+	if (scan and scan.sortedData and gCurrentPane.currIndex and scan.sortedData[gCurrentPane.currIndex]) then
+		link = scan.sortedData[gCurrentPane.currIndex].link;
+	end
+
+	if (not link and scan) then
+		link = scan.itemLink;
+	end
+
 	local num  = Atr_StackSize();
 
 	if (not link) then
@@ -3317,6 +3330,11 @@ function Atr_ShowCurrentAuctions()
 			if (data.type == "n") then
 
 				lineEntry:Show();
+
+				-- hovering a row shows the tooltip of THAT auction's exact item,
+				-- so same-named variants (rarity/level) can be compared directly
+
+				lineEntry.itemLink = data.link or gCurrentPane.activeScan.itemLink;
 
 				if (data.count == 1) then
 					entrytext = string.format ("%i %s %i", data.count, ZT ("stack of"), data.stackSize);

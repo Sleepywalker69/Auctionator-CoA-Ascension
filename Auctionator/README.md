@@ -45,6 +45,7 @@ Upgraded from a single scalar price per item to a rich per-item record, migrated
 - Smarter fallbacks: with no current auctions, the recommendation is based on scan history, then hints.
 - **Clickable bag panel** with reliable soulbound filtering: items are only listed once cached, and any `* Bound` line (Soulbound, Account Bound, custom **Realm Bound**, etc.) excludes them — while the sellable "Binds when picked up/equipped" state is correctly kept. Uncached slots are retried automatically instead of leaking a bound item into the list.
 - **Rarity-aware variant handling:** same-named variants (e.g. Bloodforged items that exist as rare *and* epic) no longer blend together — result rows are color-coded by rarity, the price recommendation prefers auctions matching *your* item's rarity, and buying matches rarity exactly.
+- **Per-auction item links:** every result row carries the exact item it represents — same-named variants never merge into one row even at identical prices, **hovering a row shows that auction's real tooltip** (compare stats/levels directly), the header icon's tooltip follows the selected row, and buying/row-removal match on the exact link so even same-rarity variants at different item levels can't cross.
 - **"My rarity only" toggle** (Sell tab, next to *Hide bid-only*): hides same-named auctions of a different rarity from the list entirely while selling — your own listings always stay visible. Persisted across sessions.
 - Fork features preserved: Bloodforged/suffix name stripping, stacking preferences, multi-stack posting.
 

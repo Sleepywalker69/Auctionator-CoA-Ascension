@@ -15,6 +15,7 @@ local gAtr_Buy_BuyoutPrice  = 0;
 local gAtr_Buy_ItemName     = "";
 local gAtr_Buy_StackSize    = 1;
 local gAtr_Buy_Quality      = nil;	-- same-named variants (Bloodforged) can differ in rarity
+local gAtr_Buy_Link         = nil;	-- exact item link of the clicked row, for precise matching
 local gAtr_Buy_NumBought    = 0;  
 local gAtr_Buy_NumUserWants = -1; 
 local gAtr_Buy_MaxCanBuy    = 0;
@@ -155,6 +156,7 @@ function Atr_Buy1_Onclick ()
 	gAtr_Buy_ItemName		= scan.itemName;
 	gAtr_Buy_StackSize		= data.stackSize;
 	gAtr_Buy_Quality		= data.quality;
+	gAtr_Buy_Link			= data.link;
 	gAtr_Buy_MaxCanBuy		= data.count;
 	gAtr_Buy_Pass			= 1;
 	
@@ -353,10 +355,13 @@ function Atr_Buy_CountMatches(andBuy)
 		end
 
 		-- quality must match too: a rare and an epic Bloodforged variant can share
-		-- name, price and stack size, and clicking the epic must never buy the rare
+		-- name, price and stack size, and clicking the epic must never buy the rare.
+		-- when the clicked row's exact item link is known, require it to match as
+		-- well, so even same-quality variants (different item levels) can't cross
 
 		if (zc.StringSame(name, gAtr_Buy_ItemName) and buyoutPrice == gAtr_Buy_BuyoutPrice and count == gAtr_Buy_StackSize
-			and (gAtr_Buy_Quality == nil or quality == nil or quality == gAtr_Buy_Quality)) then
+			and (gAtr_Buy_Quality == nil or quality == nil or quality == gAtr_Buy_Quality)
+			and (gAtr_Buy_Link == nil or GetAuctionItemLink("list", i) == gAtr_Buy_Link)) then
 			numMatches = numMatches + 1;
 
 			if (andBuy) then
@@ -514,7 +519,7 @@ function Atr_Buy_Cancel(msg, userCancelled)
 
 			local n;
 			for n = 1, boughtCount do
-				scan:SubtractScanItem (gAtr_Buy_ItemName, gAtr_Buy_StackSize, gAtr_Buy_BuyoutPrice);
+				scan:SubtractScanItem (gAtr_Buy_ItemName, gAtr_Buy_StackSize, gAtr_Buy_BuyoutPrice, gAtr_Buy_Link);
 			end
 
 			scan:CondenseAndSort();

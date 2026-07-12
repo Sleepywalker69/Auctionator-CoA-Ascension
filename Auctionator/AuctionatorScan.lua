@@ -580,7 +580,7 @@ function AtrSearch:AnalyzeResultsPage()
 
 				local scn = self.items[name];
 
-				scn:AddScanItem (name, count, buyoutPrice, owner, 1, curpage, ax.quality);
+				scn:AddScanItem (name, count, buyoutPrice, owner, 1, curpage, ax.quality, ax.itemLink);
 
 				if (scn.itemLink == nil or self.itemClass == nil) then
 					scn:UpdateItemLink (ax.itemLink);
@@ -622,7 +622,7 @@ end
 
 -----------------------------------------
 
-function AtrScan:AddScanItem (name, stackSize, buyoutPrice, owner, numAuctions, curpage, quality)
+function AtrScan:AddScanItem (name, stackSize, buyoutPrice, owner, numAuctions, curpage, quality, link)
 
 	local sd = {};
 
@@ -636,6 +636,7 @@ function AtrScan:AddScanItem (name, stackSize, buyoutPrice, owner, numAuctions, 
 		sd["owner"]			= owner;
 		sd["pagenum"]		= curpage;
 		sd["quality"]		= quality;		-- same-named variants (e.g. Bloodforged) can differ in rarity
+		sd["link"]			= link;			-- the auction's exact item link, so each variant keeps its own tooltip
 		sd["enchantID"]		= enchantID
 
 		tinsert (self.scanData, sd);
@@ -727,10 +728,22 @@ end
 
 -----------------------------------------
 
-function AtrScan:SubtractScanItem (name, stackSize, buyoutPrice)
+function AtrScan:SubtractScanItem (name, stackSize, buyoutPrice, link)
 
 	local sd;
 	local i;
+
+	-- when the exact item link is known, remove precisely that variant's entry
+	-- (same-named variants can share stack size and price)
+
+	if (link) then
+		for i,sd in ipairs (self.scanData) do
+			if (sd.stackSize == stackSize and sd.buyoutPrice == buyoutPrice and sd.link == link) then
+				tremove (self.scanData, i);
+				return;
+			end
+		end
+	end
 
 	for i,sd in ipairs (self.scanData) do
 
@@ -1111,7 +1124,7 @@ function AtrScan:CondenseAndSort ()
 			dataType = "a";
 		end
 
-		local key = "_"..sd.stackSize.."_"..sd.buyoutPrice.."_"..ownerCode..dataType.."_"..(sd.quality or -1);
+		local key = "_"..sd.stackSize.."_"..sd.buyoutPrice.."_"..ownerCode..dataType.."_"..(sd.quality or -1).."_"..(sd.link or "");
 
 		if (conddata[key]) then
 			conddata[key].count		= conddata[key].count + 1;
@@ -1124,6 +1137,7 @@ function AtrScan:CondenseAndSort ()
 			data.buyoutPrice	= sd.buyoutPrice;
 			data.itemPrice		= sd.buyoutPrice / sd.stackSize;
 			data.quality		= sd.quality;
+			data.link			= sd.link;
 			data.minpage		= sd.pagenum;
 			data.maxpage		= sd.pagenum;
 			data.count			= 1;
