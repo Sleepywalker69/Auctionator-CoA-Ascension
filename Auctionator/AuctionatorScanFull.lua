@@ -47,6 +47,7 @@ local gLowPrices = {};
 local gQualities = {};
 local gQualityLowPrices = {};
 local gVariantLowPrices = {};
+local gTSMScanBridgeActive = false;
 
 local badItemCount = 0
 
@@ -90,6 +91,7 @@ function Atr_FullScanStart()
 	gQualities = {}
 	gQualityLowPrices = {}
 	gVariantLowPrices = {}
+	gTSMScanBridgeActive = Atr_TSMScanBridge_Begin()
 
 	gGetAllSuccess = true
 
@@ -142,6 +144,8 @@ function Atr_FullScan_OnAHClosed()
 	-- Atr_FullScanFrameIdle claiming every OnUpdate tick after the AH closes
 
 	if (gAtr_FullScanState ~= ATR_FS_NULL) then
+		Atr_TSMScanBridge_Abort()
+		gTSMScanBridgeActive = false
 		gAtr_FullScanState = ATR_FS_NULL;
 		Atr_FullScanStatus:SetText ("");
 		Atr_FullScanStartButton:Enable();
@@ -188,6 +192,8 @@ function Atr_FullScanFrameIdle()
 		zc.msg_anm ("|cffff3333Warning:|r server did not respond to the getAll request.");
 		zc.msg_anm ("Use the default page-by-page scan instead (click without holding Ctrl).");
 		gAtr_FullScanState = ATR_FS_NULL;
+		Atr_TSMScanBridge_Abort()
+		gTSMScanBridgeActive = false
 		Atr_FullScanStatus:SetText ("");
 		Atr_FullScanStartButton:Enable();
 		Atr_FullScanDone:Enable();
@@ -303,6 +309,7 @@ function Atr_FullScanAnalyze()
 	end
 	
 	local dataIsGood = true
+	local tsmRecords = gTSMScanBridgeActive and {} or nil
 
 	-- 3.3.5 GetAuctionItemInfo layout (12 values; no levelColHeader / *FullName / saleStatus)
 	local name, texture, count, quality, canUse, level, minBid, minIncrement, buyoutPrice, bidAmount, highBidder, owner, itemLink
@@ -354,6 +361,11 @@ function Atr_FullScanAnalyze()
 						gLowPrices[name] = math.min (gLowPrices[name], itemPrice);
 
 						itemLink = GetAuctionItemLink("list", x);
+						if (itemLink and tsmRecords) then
+							tsmRecords[#tsmRecords + 1] = {itemLink, itemPrice, count};
+						elseif (not itemLink) then
+							gFSNumNullItemLinks = gFSNumNullItemLinks + 1;
+						end
 						local linkQuality = quality;
 						local linkLevel = level;
 						if (itemLink) then
@@ -379,10 +391,17 @@ function Atr_FullScanAnalyze()
 			end
 			
 			if (not gDoSlowScan and (x % chunk_size) == 0 and x < numBatchAuctions) then			-- analyze fast scan data in chunks so as not to cause client to timeout?
+				if (tsmRecords) then Atr_TSMScanBridge_AddRecords(tsmRecords); end
 				gFullScanPosition = x + 1;
 				return;
 			end
 		end
+	end
+
+	-- Slow pages with incomplete rows are retried, so only commit a complete
+	-- page.  A getAll payload cannot be retried per-page; retain every valid row.
+	if (tsmRecords and (not gDoSlowScan or dataIsGood)) then
+		Atr_TSMScanBridge_AddRecords(tsmRecords);
 	end
 
 	
@@ -490,6 +509,8 @@ function Atr_FullScanUpdateDB()
 	Atr_UpdateFullScanFrame ();
 
 	Atr_Broadcast_DBupdated (totalItems, "fullscan");
+	Atr_TSMScanBridge_Finish();
+	gTSMScanBridgeActive = false
 	if (Atr_Inventory_MarkDirty) then Atr_Inventory_MarkDirty(); end
 
 	Atr_ClearBrowseListings();

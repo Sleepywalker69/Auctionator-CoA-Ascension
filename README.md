@@ -16,6 +16,7 @@ The full scan was rebuilt from scratch:
 - **Fixed a 3.3.5 filter bug** inherited from the WoD code: the page query passed `0` for its filter arguments, which WoD treats as "no filter" but 3.3.5 interprets as *"Poor quality only"* — the scan only ever saw grey items. Filters are now `nil`, matching the (working) item-search path and TSM.
 - **Ctrl+click = getAll fast scan** where the server permits one. Results are analyzed in configurable chunks per frame (`/atr fsc N`, default 50) so a 50k-auction payload never freezes or disconnects the client, and a 30-second no-response timeout protects against servers that advertise getAll but silently ignore it.
 - Both scan types feed the same database, record daily price history, and clear stale items via purge marks.
+- **TSM AuctionDB synchronization:** when the Ascension TSM AuctionDB module is loaded, a completed Auctionator full scan is also passed to TSM's native scan importer. TSM recalculates its own `DBMarket`, `DBMinBuyout`, available quantity, and scan age from the actual auction rows; interrupted scans are never imported. Auctionator and TSM still retain separate saved-variable databases.
 
 ## Item search / browse scanning
 

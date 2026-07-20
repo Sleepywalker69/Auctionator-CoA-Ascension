@@ -32,6 +32,7 @@ Auctionator.xml
 AuctionatorLocalize.lua
 AuctionatorPane.lua
 AuctionatorScan.lua
+AuctionatorTSM.lua
 AuctionatorScanFull.lua
 AuctionatorQuery.lua
 AuctionatorHints.lua
