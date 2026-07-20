@@ -122,3 +122,46 @@ end
 function Auctionator.ItemLink:BonusIdCount()
   return tonumber( self:GetField( Auctionator.Constants.ItemLink.BONUS_ID_COUNT ) )
 end
+
+-- Return a stable market-variant key without the per-copy unique id or the
+-- character level embedded in old item links.  Ascension can give items with
+-- the same display name different rarity, item level, suffix and bonus data;
+-- those fields must not share a valuation bucket.
+
+local function Atr_NormalizeVariantField(value)
+  if value == nil or value == "" then
+    return "0"
+  end
+  return tostring(value)
+end
+
+function Atr_GetItemVariantKey(itemLink, quality, itemLevel)
+  if type(itemLink) ~= "string" then
+    return nil
+  end
+
+  local parsed = Auctionator.ItemLink:new({ item_link = itemLink }):ParsedItemLink()
+  if not parsed or parsed[1] ~= "item" then
+    return itemLink
+  end
+
+  local fields = {
+    Atr_NormalizeVariantField(parsed[Auctionator.Constants.ItemLink.ID]),
+    Atr_NormalizeVariantField(parsed[Auctionator.Constants.ItemLink.SUFFIX_ID]),
+    tostring(quality or -1),
+    tostring(itemLevel or -1),
+  }
+
+  -- Preserve upgrade / difficulty / custom bonus fields.  UNIQUE_ID and LEVEL
+  -- are deliberately excluded: they identify a physical copy rather than a
+  -- market-comparable variant.
+
+  local firstExtra = Auctionator.Constants.ItemLink.UPGRADE_ID
+  local lastExtra  = Auctionator.Constants.ItemLink.MAX
+  local index
+  for index = firstExtra, lastExtra do
+    fields[#fields + 1] = Atr_NormalizeVariantField(parsed[index])
+  end
+
+  return table.concat(fields, ":")
+end

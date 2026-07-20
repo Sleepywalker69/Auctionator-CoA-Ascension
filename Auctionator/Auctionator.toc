@@ -40,5 +40,6 @@ AuctionatorConflicts.lua
 AuctionatorAPI.lua
 AuctionatorConfig.lua
 AuctionatorBuy.lua
+AuctionatorInventory.lua
 
 AuctionatorConfig.xml

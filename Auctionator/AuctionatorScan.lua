@@ -985,6 +985,7 @@ function AtrSearch:Finish()
 				Atr_UpdateScanDBprice		(scn.itemName, newprice);
 				Atr_UpdateScanDBclassInfo	(scn.itemName, scn.itemClass, scn.itemSubclass);
 				Atr_UpdateScanDBitemID		(scn.itemName, scn.itemLink);
+				Atr_UpdateScanDBVariantPrices (scn.itemName, scn.scanData);
 
 				table.insert (broadcastInfo, {i=scn.itemName, p=newprice});
 			end
@@ -1473,7 +1474,7 @@ function Atr_UpdateScanDBitemID (itemName, itemLink)
 		return;
 	end
 
-	if (not gAtr_ScanDB[itemName]) then
+	if (type(gAtr_ScanDB[itemName]) ~= "table") then
 		gAtr_ScanDB[itemName] = {};
 	end
 
@@ -1485,7 +1486,7 @@ end
 
 function Atr_UpdateScanDBclassInfo (itemName, class, subclass)
 
-	if (not gAtr_ScanDB[itemName]) then
+	if (type(gAtr_ScanDB[itemName]) ~= "table") then
 		gAtr_ScanDB[itemName] = {};
 	end
 
@@ -1518,7 +1519,7 @@ function Atr_UpdateScanDBprice (itemName, currentLowPrice, db)
 		return nil
 	end
 
-	if (not db[itemName]) then
+	if (type(db[itemName]) ~= "table") then
 		db[itemName] = {};
 	end
 
@@ -1546,6 +1547,93 @@ function Atr_UpdateScanDBprice (itemName, currentLowPrice, db)
 	if (db[itemName]["po"]) then	-- unmark this item so it isn't purged
 		db[itemName]["po"] = nil;
 	end
+end
+
+-----------------------------------------
+
+local function Atr_EnsureVariantDBEntry (itemName)
+
+	if (type(gAtr_ScanDB) ~= "table") then
+		return nil;
+	end
+
+	if (type(gAtr_ScanDB[itemName]) ~= "table") then
+		gAtr_ScanDB[itemName] = {};
+	end
+
+	local info = gAtr_ScanDB[itemName];
+	if (type(info.qmr) ~= "table") then info.qmr = {}; end
+	if (type(info.vmr) ~= "table") then info.vmr = {}; end
+
+	return info;
+end
+
+-----------------------------------------
+
+function Atr_UpdateScanDBVariantPrice (itemName, quality, variantKey, currentLowPrice)
+
+	if (not itemName or type(currentLowPrice) ~= "number" or currentLowPrice <= 0) then
+		return;
+	end
+
+	local info = Atr_EnsureVariantDBEntry (itemName);
+	if (not info) then return; end
+
+	if (quality ~= nil) then
+		local qkey = tostring(quality);
+		if (type(info.qmr[qkey]) ~= "number" or currentLowPrice < info.qmr[qkey]) then
+			info.qmr[qkey] = currentLowPrice;
+		end
+	end
+
+	if (variantKey) then
+		info.vmr[variantKey] = currentLowPrice;
+	end
+
+	info.vwhen = time();
+end
+
+-----------------------------------------
+
+function Atr_UpdateScanDBVariantPrices (itemName, scanData)
+
+	if (not itemName or type(scanData) ~= "table") then return; end
+
+	local qualityPrices = {};
+	local variantPrices = {};
+	local index, sd;
+
+	for index,sd in ipairs(scanData) do
+		if (sd.buyoutPrice and sd.buyoutPrice > 0 and sd.stackSize and sd.stackSize > 0) then
+			local price = math.floor(sd.buyoutPrice / sd.stackSize);
+			local quality = sd.quality;
+			local itemLevel = nil;
+
+			if (sd.link) then
+				local _, _, linkQuality, linkLevel = GetItemInfo(sd.link);
+				quality = quality or linkQuality;
+				itemLevel = linkLevel;
+			end
+
+			if (quality ~= nil) then
+				local qkey = tostring(quality);
+				qualityPrices[qkey] = math.min(qualityPrices[qkey] or price, price);
+			end
+
+			local variantKey = Atr_GetItemVariantKey(sd.link, quality, itemLevel);
+			if (variantKey) then
+				variantPrices[variantKey] = math.min(variantPrices[variantKey] or price, price);
+			end
+		end
+	end
+
+	local info = Atr_EnsureVariantDBEntry (itemName);
+	if (not info) then return; end
+
+	local key, price;
+	for key,price in pairs(qualityPrices) do info.qmr[key] = price; end
+	for key,price in pairs(variantPrices) do info.vmr[key] = price; end
+	info.vwhen = time();
 end
 
 -----------------------------------------
@@ -1687,6 +1775,16 @@ function Atr_PruneScanDB(verbose)
 	end
 
 	for itemName, info in pairs (gAtr_ScanDB) do
+
+		-- Very old / partially migrated databases stored the most recent price
+		-- directly as a number.  Preserve that price while normalizing the entry;
+		-- calling pairs() on the number caused the startup errors users reported.
+
+		if (type(info) == "number") then
+			info = { mr = info };
+		elseif (type(info) ~= "table") then
+			info = {};
+		end
 
 		local mostRecentDay = -1;
 

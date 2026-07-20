@@ -38,6 +38,7 @@ AUCTIONATOR_OPEN_BUY		= 0;	-- obsolete - just needed for migration
 local SELL_TAB		= 1;
 local MORE_TAB		= 2;
 local BUY_TAB 		= 3;
+local INVENTORY_TAB	= 4;
 
 local MODE_LIST_ACTIVE	= 1;
 local MODE_LIST_ALL		= 2;
@@ -100,6 +101,7 @@ local gHlistNeedsUpdate = false;
 local gSellPane;
 local gMorePane;
 local gShopPane;
+local gInventoryPane;
 
 local gCurrentPane;
 
@@ -678,13 +680,21 @@ function Atr_Init()
 		Atr_ShoppingListsInit();
 	end
 
-	gShopPane	= Atr_AddSellTab (ZT("Buy"),			BUY_TAB);
-	gSellPane	= Atr_AddSellTab (ZT("Sell"),			SELL_TAB);
-	gMorePane	= Atr_AddSellTab (ZT("More").."...",	MORE_TAB);
+	gShopPane		= Atr_AddSellTab (ZT("Buy"),			BUY_TAB);
+	gSellPane		= Atr_AddSellTab (ZT("Sell"),			SELL_TAB);
+	gInventoryPane	= Atr_AddSellTab ("Inventory",		INVENTORY_TAB);
+	gMorePane		= Atr_AddSellTab (ZT("More").."...",	MORE_TAB);
 
 	Atr_AddMainPanel ();
 
 	Atr_CreateBagPanel ();
+
+	if (Atr_Inventory_Init) then
+		-- Inventory uses the full AuctionFrame canvas.  Atr_Main_Panel starts 210px
+		-- in from the left for the legacy Buy/Sell layout, which is too narrow for
+		-- the split inventory/market view.
+		Atr_Inventory_Init (AuctionFrame);
+	end
 
 	Atr_FixupButtons ();
 
@@ -803,6 +813,7 @@ end
 local _AUCTIONATOR_SELL_TAB_INDEX = 0;
 local _AUCTIONATOR_MORE_TAB_INDEX = 0;
 local _AUCTIONATOR_BUY_TAB_INDEX = 0;
+local _AUCTIONATOR_INVENTORY_TAB_INDEX = 0;
 
 --------------------------------------------------------------------------------
 
@@ -821,6 +832,7 @@ function Atr_FindTabIndex (whichTab)
 				if (tab.auctionatorTab == SELL_TAB)		then _AUCTIONATOR_SELL_TAB_INDEX = i; end;
 				if (tab.auctionatorTab == MORE_TAB)		then _AUCTIONATOR_MORE_TAB_INDEX = i; end;
 				if (tab.auctionatorTab == BUY_TAB)		then _AUCTIONATOR_BUY_TAB_INDEX = i; end;
+				if (tab.auctionatorTab == INVENTORY_TAB)	then _AUCTIONATOR_INVENTORY_TAB_INDEX = i; end;
 			end
 
 			i = i + 1;
@@ -830,6 +842,7 @@ function Atr_FindTabIndex (whichTab)
 	if (whichTab == SELL_TAB)	then return _AUCTIONATOR_SELL_TAB_INDEX ; end;
 	if (whichTab == MORE_TAB)	then return _AUCTIONATOR_MORE_TAB_INDEX; end;
 	if (whichTab == BUY_TAB)	then return _AUCTIONATOR_BUY_TAB_INDEX; end;
+	if (whichTab == INVENTORY_TAB) then return _AUCTIONATOR_INVENTORY_TAB_INDEX; end;
 
 	return 0;
 end
@@ -863,6 +876,13 @@ function Atr_AuctionFrameTab_OnClick (self, index, down)
 
 	if ( index == nil or type(index) == "string") then
 		index = self:GetID();
+	end
+
+	if (Atr_Inventory_Hide) then
+		local canSwitch = Atr_Inventory_Hide(index == Atr_FindTabIndex(INVENTORY_TAB));
+		if (canSwitch == false) then
+			return;
+		end
 	end
 
 	_G["Atr_Main_Panel"]:Hide();
@@ -914,10 +934,12 @@ function Atr_AuctionFrameTab_OnClick (self, index, down)
 		if (index == Atr_FindTabIndex(SELL_TAB))	then gCurrentPane = gSellPane; end;
 		if (index == Atr_FindTabIndex(BUY_TAB))		then gCurrentPane = gShopPane; end;
 		if (index == Atr_FindTabIndex(MORE_TAB))	then gCurrentPane = gMorePane; end;
+		if (index == Atr_FindTabIndex(INVENTORY_TAB)) then gCurrentPane = gInventoryPane; end;
 
 		if (index == Atr_FindTabIndex(SELL_TAB))	then AuctionatorTitle:SetText ("Auctionator - "..ZT("Sell"));			end;
 		if (index == Atr_FindTabIndex(BUY_TAB))		then AuctionatorTitle:SetText ("Auctionator - "..ZT("Buy"));			end;
 		if (index == Atr_FindTabIndex(MORE_TAB))	then AuctionatorTitle:SetText ("Auctionator - "..ZT("More").."...");	end;
+		if (index == Atr_FindTabIndex(INVENTORY_TAB)) then AuctionatorTitle:SetText ("Auctionator - Inventory Value"); end;
 
 		Atr_ClearHlist();
 		Atr_SellControls:Hide();
@@ -944,7 +966,14 @@ function Atr_AuctionFrameTab_OnClick (self, index, down)
 
 		AuctionFrameMoneyFrame:Hide();
 
-		if (index == Atr_FindTabIndex(SELL_TAB)) then
+		if (index == Atr_FindTabIndex(INVENTORY_TAB)) then
+			if (Atr_BagPanel) then
+				Atr_BagPanel:Hide();
+			end
+			if (Atr_Inventory_Show) then
+				Atr_Inventory_Show();
+			end
+		elseif (index == Atr_FindTabIndex(SELL_TAB)) then
 			Atr_SellControls:Show();
 			Atr_MatchRarity_Button:Show();
 			if (Atr_BagPanel) then
@@ -1006,7 +1035,11 @@ function Atr_AuctionFrameTab_OnClick (self, index, down)
 
 		_G["Atr_Main_Panel"]:Show();
 
-		gCurrentPane.UINeedsUpdate = true;
+		if (index == Atr_FindTabIndex(INVENTORY_TAB)) then
+			gCurrentPane.UINeedsUpdate = false;
+		else
+			gCurrentPane.UINeedsUpdate = true;
+		end
 
 		if (gOpenAllBags == 1) then
 			OpenAllBags(true);
@@ -1078,6 +1111,10 @@ function Atr_OnDropItem (self, button)
 	if (not Atr_IsTabSelected(SELL_TAB)) then
 		Atr_SelectPane (SELL_TAB);		-- then fall through
 	end
+	if (not Atr_IsTabSelected(SELL_TAB)) then
+		ClearCursor();
+		return;
+	end
 
 	Atr_ClickAuctionSellItemButton (self, button);
 	ClearCursor();
@@ -1107,6 +1144,9 @@ local function Atr_LoadContainerItemToSellPane()
 
 	if (not Atr_IsTabSelected(SELL_TAB)) then
 		Atr_SelectPane (SELL_TAB);
+	end
+	if (not Atr_IsTabSelected(SELL_TAB)) then
+		return;
 	end
 
 	if (IsControlKeyDown()) then
@@ -1193,6 +1233,9 @@ local gMS_stacksPrev;
 -----------------------------------------
 
 function Atr_OnAuctionMultiSellStart()
+	if (Atr_Inventory_IsPosting and Atr_Inventory_IsPosting()) then
+		return;
+	end
 
 	gMS_stacksPrev = 0;
 
@@ -1201,10 +1244,20 @@ end
 -----------------------------------------
 
 function Atr_OnAuctionMultiSellUpdate()
+	if (Atr_Inventory_IsPosting and Atr_Inventory_IsPosting()) then
+		return;
+	end
+	if (not gJustPosted_ItemName or type(gJustPosted_StackSize) ~= "number" or gJustPosted_StackSize <= 0 or type(gJustPosted_BuyoutPrice) ~= "number") then
+		return;
+	end
+
 	local stacksSoFar  = arg1;
 	local stacksTotal  = arg2;
+	if (type(stacksSoFar) ~= "number" or type(stacksTotal) ~= "number") then
+		return;
+	end
 
-	local delta = stacksSoFar - gMS_stacksPrev;
+	local delta = stacksSoFar - (gMS_stacksPrev or 0);
 
 --zc.md ("stacksSoFar: ", stacksSoFar, "stacksTotal: ", stacksTotal, "delta: ", delta);
 
@@ -1222,11 +1275,17 @@ end
 -----------------------------------------
 
 function Atr_OnAuctionMultiSellFailure()
+	if (Atr_Inventory_IsPosting and Atr_Inventory_IsPosting()) then
+		return;
+	end
+	if (not gJustPosted_ItemName or type(gJustPosted_StackSize) ~= "number" or gJustPosted_StackSize <= 0 or type(gJustPosted_BuyoutPrice) ~= "number") then
+		return;
+	end
 
 	-- add one more.  no good reason other than it just seems to work
 	Atr_AddToScan (gJustPosted_ItemName, gJustPosted_StackSize, gJustPosted_BuyoutPrice, 1);
 
-	Atr_LogMsg (gJustPosted_ItemLink, gJustPosted_StackSize, gJustPosted_BuyoutPrice, gMS_stacksPrev + 1);
+	Atr_LogMsg (gJustPosted_ItemLink, gJustPosted_StackSize, gJustPosted_BuyoutPrice, (gMS_stacksPrev or 0) + 1);
 	Atr_AddHistoricalPrice (gJustPosted_ItemName, gJustPosted_BuyoutPrice / gJustPosted_StackSize, gJustPosted_StackSize, gJustPosted_ItemLink);
 
 	if (gCurrentPane.activeScan) then
@@ -2289,6 +2348,10 @@ function Atr_OnAuctionHouseClosed()
 	end
 
 	Atr_CheckingActive_Finish ();
+
+	if (Atr_Inventory_OnAuctionHouseClosed) then
+		Atr_Inventory_OnAuctionHouseClosed();
+	end
 
 	Atr_ClearScanCache();
 
@@ -4249,7 +4312,7 @@ function Atr_IsTabSelected(whichTab)
 	end
 
 	if (not whichTab) then
-		return (Atr_IsTabSelected(SELL_TAB) or Atr_IsTabSelected(MORE_TAB) or Atr_IsTabSelected(BUY_TAB));
+		return (Atr_IsTabSelected(SELL_TAB) or Atr_IsTabSelected(MORE_TAB) or Atr_IsTabSelected(BUY_TAB) or Atr_IsTabSelected(INVENTORY_TAB));
 	end
 
 	return (PanelTemplates_GetSelectedTab (AuctionFrame) == Atr_FindTabIndex(whichTab));
@@ -4259,7 +4322,7 @@ end
 
 function Atr_IsAuctionatorTab (tabIndex)
 
-	if (tabIndex == Atr_FindTabIndex(SELL_TAB) or tabIndex == Atr_FindTabIndex(MORE_TAB) or tabIndex == Atr_FindTabIndex(BUY_TAB) ) then
+	if (tabIndex == Atr_FindTabIndex(SELL_TAB) or tabIndex == Atr_FindTabIndex(MORE_TAB) or tabIndex == Atr_FindTabIndex(BUY_TAB) or tabIndex == Atr_FindTabIndex(INVENTORY_TAB) ) then
 
 		return true;
 
@@ -4708,6 +4771,15 @@ function Atr_GetCurrentPane ()			-- so other modules can use gCurrentPane
 	return gCurrentPane;
 end
 
+function Atr_ClearJustPostedItem ()
+	gJustPosted_ItemName = nil;
+	gJustPosted_ItemLink = nil;
+	gJustPosted_BuyoutPrice = nil;
+	gJustPosted_StackSize = nil;
+	gJustPosted_NumInBagsAtStart = nil;
+	gJustPosted_NumStacks = nil;
+end
+
 -----------------------------------------
 
 function Atr_SetUINeedsUpdate ()			-- so other modules can easily set
@@ -4908,6 +4980,9 @@ function Atr_BagItem_LoadToSellPane (bagID, slotID)
 	if (not Atr_IsTabSelected(SELL_TAB)) then
 		Atr_SelectPane (SELL_TAB);
 	end
+	if (not Atr_IsTabSelected(SELL_TAB)) then
+		return;
+	end
 
 	if (IsControlKeyDown()) then
 		gAutoSingleton = time();
@@ -4931,7 +5006,7 @@ end
 --   ready=false means the item isn't cached yet so its binding lines aren't in
 --   the tooltip - the caller should retry rather than trust the result
 
-local function Atr_BagItem_IsAuctionable (bagID, slotID, link)
+function Atr_BagItem_IsAuctionable (bagID, slotID, link)
 
 	-- if the item isn't in the client cache yet, SetBagItem won't have the
 	-- binding lines and a Soulbound item would slip through - defer instead.

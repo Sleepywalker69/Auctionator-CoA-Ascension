@@ -45,6 +45,8 @@ local gScanDetails = {}
 
 local gLowPrices = {};
 local gQualities = {};
+local gQualityLowPrices = {};
+local gVariantLowPrices = {};
 
 local badItemCount = 0
 
@@ -55,6 +57,11 @@ local gGetAllSuccess
 -----------------------------------------
 
 function Atr_FullScanStart()
+	if (Atr_Inventory_IsBusy and Atr_Inventory_IsBusy()) then
+		Atr_FullScanStatus:SetText("Stop the Inventory posting queue before starting a full scan.");
+		zc.msg_yellow("Auctionator: stop the Inventory posting queue before starting a full scan.");
+		return;
+	end
 
 	-- the DEFAULT scan is page-by-page (TSM style): it works on every server and
 	-- needs no getAll cooldown. Ctrl+click requests the single-shot getAll scan
@@ -79,6 +86,10 @@ function Atr_FullScanStart()
 	gNumAdded   = 0
 	gNumUpdated = 0
 	gNumScanned = 0
+	gLowPrices = {}
+	gQualities = {}
+	gQualityLowPrices = {}
+	gVariantLowPrices = {}
 
 	gGetAllSuccess = true
 
@@ -259,6 +270,8 @@ function Atr_FullScanBeginAnalyzePhase()
 	if (not gDoSlowScan) then
 		gLowPrices = {}
 		gQualities = {}
+		gQualityLowPrices = {}
+		gVariantLowPrices = {}
 
 		zz ("FULL SCAN:"..numBatchAuctions.." out of  "..totalAuctions)
 		zz ("AUCTIONATOR_FS_CHUNK: ", AUCTIONATOR_FS_CHUNK)
@@ -292,7 +305,7 @@ function Atr_FullScanAnalyze()
 	local dataIsGood = true
 
 	-- 3.3.5 GetAuctionItemInfo layout (12 values; no levelColHeader / *FullName / saleStatus)
-	local name, texture, count, quality, canUse, level, minBid, minIncrement, buyoutPrice, bidAmount, highBidder, owner
+	local name, texture, count, quality, canUse, level, minBid, minIncrement, buyoutPrice, bidAmount, highBidder, owner, itemLink
 
 	if (numBatchAuctions > 0) then
 
@@ -325,18 +338,42 @@ function Atr_FullScanAnalyze()
 				dataIsGood = false
 				zz ("bad item scanned.  name: ", name, " count: ", count, "badItemCount: ", badItemCount);
 			else
-				gQualities[name] = quality;
-				
-				if (buyoutPrice ~= nil) then
-				
+				if (quality ~= nil) then
+					gQualities[name] = math.max(gQualities[name] or quality, quality);
+				end
+
+				if (buyoutPrice ~= nil and count and count > 0) then
+
 					local itemPrice = math.floor (buyoutPrice / count);
-				
+
 					if (itemPrice > 0) then
 						if (not gLowPrices[name]) then
 							gLowPrices[name] = BIGNUM;
 						end
 						
 						gLowPrices[name] = math.min (gLowPrices[name], itemPrice);
+
+						itemLink = GetAuctionItemLink("list", x);
+						local linkQuality = quality;
+						local linkLevel = level;
+						if (itemLink) then
+							local _, _, cachedQuality, cachedLevel = GetItemInfo(itemLink);
+							linkQuality = cachedQuality or linkQuality;
+							linkLevel = cachedLevel or linkLevel;
+						end
+						if (linkQuality ~= nil) then
+							gQualities[name] = math.max(gQualities[name] or linkQuality, linkQuality);
+						end
+
+						local qkey = tostring(linkQuality or -1);
+						if (not gQualityLowPrices[name]) then gQualityLowPrices[name] = {}; end
+						gQualityLowPrices[name][qkey] = math.min(gQualityLowPrices[name][qkey] or itemPrice, itemPrice);
+
+						local variantKey = Atr_GetItemVariantKey(itemLink, linkQuality, linkLevel);
+						if (variantKey) then
+							if (not gVariantLowPrices[name]) then gVariantLowPrices[name] = {}; end
+							gVariantLowPrices[name][variantKey] = math.min(gVariantLowPrices[name][variantKey] or itemPrice, itemPrice);
+						end
 					end
 				end
 			end
@@ -384,7 +421,7 @@ function Atr_FullScanUpdateDB()
 		
 		if (newprice < BIGNUM) then
 		
-			local qx = gQualities[name] + 1;
+			local qx = (gQualities[name] or 0) + 1;
 			
 			if (qx == nil or numEachQual[qx] == nil) then
 				zz ("ERROR: numEachQual[qx] == nil,  qx: ", qx, " name: ", name, " totalItems: ", totalItems);
@@ -411,6 +448,13 @@ function Atr_FullScanUpdateDB()
 				end
 
 				Atr_UpdateScanDBprice (name, newprice);
+
+				local dbInfo = gAtr_ScanDB[name];
+				if (type(dbInfo) == "table") then
+					dbInfo.qmr = gQualityLowPrices[name] or {};
+					dbInfo.vmr = gVariantLowPrices[name] or {};
+					dbInfo.vwhen = time();
+				end
 			end
 		end
 	end
@@ -446,10 +490,14 @@ function Atr_FullScanUpdateDB()
 	Atr_UpdateFullScanFrame ();
 
 	Atr_Broadcast_DBupdated (totalItems, "fullscan");
-	
+	if (Atr_Inventory_MarkDirty) then Atr_Inventory_MarkDirty(); end
+
 	Atr_ClearBrowseListings();
 	
 	gLowPrices = {};
+	gQualities = {};
+	gQualityLowPrices = {};
+	gVariantLowPrices = {};
 
 	collectgarbage ("collect");
 	

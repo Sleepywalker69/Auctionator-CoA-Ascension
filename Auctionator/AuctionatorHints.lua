@@ -38,7 +38,7 @@ function Atr_BuildHints (itemName)
 
 	-- Auctionator Full Scan
 	
-	if (itemName ~= nil and gAtr_ScanDB[itemName] ~= nil and gAtr_ScanDB[itemName].mr ~= nil) then
+	if (itemName ~= nil and type(gAtr_ScanDB) == "table" and type(gAtr_ScanDB[itemName]) == "table" and gAtr_ScanDB[itemName].mr ~= nil) then
 		Atr_AppendHint (results, gAtr_ScanDB[itemName].mr, ZT("Auctionator scan data"));
 	end
 
@@ -217,7 +217,7 @@ function Atr_GetAuctionPrice (item)  -- itemName or itemID
 		return nil
 	end
 
-	if ((type(gAtr_ScanDB) == "table") and gAtr_ScanDB[itemName] and gAtr_ScanDB[itemName].mr) then
+	if ((type(gAtr_ScanDB) == "table") and type(gAtr_ScanDB[itemName]) == "table" and gAtr_ScanDB[itemName].mr) then
 		return gAtr_ScanDB[itemName].mr;
 	end
 

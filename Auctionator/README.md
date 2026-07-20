@@ -33,6 +33,8 @@ The per-item scan engine (Sell tab current-auctions scan, Buy tab searches, unde
 Upgraded from a single scalar price per item to a rich per-item record, migrated automatically on first login (`__dbversion` 4; your existing prices are preserved as the starting point):
 
 - `mr` — most recent lowest buyout
+- `qmr` — lowest observed buyout per rarity
+- `vmr` — lowest observed buyout per exact market variant (item ID, suffix, rarity, item level, upgrades and custom bonus fields)
 - `H<day>` / `L<day>` — daily high/low of the observed lows (the History sub-tab's data)
 - `id` — item ID string, `cc`/`sc` — class/subclass
 - `po` — purge mark: items no longer seen in full scans are cleaned out automatically; long-unseen items and old history are pruned on login (`AUCTIONATOR_DB_MAXITEM_AGE`, `AUCTIONATOR_DB_MAXHIST_DAYS`)
@@ -48,6 +50,19 @@ Upgraded from a single scalar price per item to a rich per-item record, migrated
 - **Per-auction item links:** every result row carries the exact item it represents — same-named variants never merge into one row even at identical prices, **hovering a row shows that auction's real tooltip** (compare stats/levels directly), the header icon's tooltip follows the selected row, and buying/row-removal match on the exact link so even same-rarity variants at different item levels can't cross.
 - **"My rarity only" toggle** (Sell tab, next to *Hide bid-only*): hides same-named auctions of a different rarity from the list entirely while selling — your own listings always stay visible. Persisted across sessions.
 - Fork features preserved: Bloodforged/suffix name stripping, stacking preferences, multi-stack posting.
+
+## Inventory Value tab
+
+- Lists every currently auctionable item in the player's bags and sorts the list by estimated total auction value, highest first. Bound, quest, conjured and otherwise unsellable items use the same defensive tooltip filter as the Sell tab.
+- Quantities are combined only when the items share the same stable market-variant key. Rare and epic Bloodforged versions, different item levels, random suffixes and custom upgrade/bonus variants therefore receive separate rows and separate prices.
+- Values prefer an exact-variant scan price, then a same-rarity price, the normal item-name scan price, and finally posting history. Items with no known price remain visible and are clearly marked `No data`.
+- Rows can be selected individually, all at once, or cleared. `Start Queue` takes a snapshot of the selected quantities and processes the highest-value rows first.
+- The tab uses the full auction-house canvas: inventory value and selection are on the left, while the right side shows every live buyout matching the current item's exact rarity, item level and variant. Rows include per-item price, stack size, auction count and seller; clicking one copies that price into the posting fields.
+- Before each selected variant is posted, the queue performs a live, page-by-page exact-variant search. It undercuts the lowest matching competing auction, matches the player's own lowest listing, or leaves the per-item buyout fields editable when no reliable price is available. An isolated tier containing at most two auctions below one quarter of the next price tier is shown in red and excluded from the automatic recommendation as a likely typo-price outlier.
+- The buyout per individual item is directly editable as gold, silver and copper, with the standard in-game coin icons beside each field. `Use Rec.` restores the calculated recommendation, and the visible duration button cycles through 12, 24 and 48 hours.
+- Stack size and number of auctions are independent editable fields. Both have context-sensitive `Max` buttons, and the live plan preview shows the resulting item quantity, buyout per auction and combined buyout total before posting. Existing Auctionator stacking preferences provide the initial values.
+- Posting is deliberately assisted: `Post Next` submits one planned auction per hardware click, then advances automatically only after a confirmed server response. This avoids the unreliable legacy multi-stack path and complies with the old client's protected auction action rules.
+- Server failures and timeouts pause the queue without increasing its listed quantity or gold totals. Retry first checks bag and owned-auction evidence so a late success cannot be posted twice; Skip and Stop preserve accurate accounting.
 
 ## Buy tab
 
