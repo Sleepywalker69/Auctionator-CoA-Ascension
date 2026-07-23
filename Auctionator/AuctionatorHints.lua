@@ -837,6 +837,12 @@ hooksecurefunc (GameTooltip, "SetAuctionSellItem",
 	end
 );
 
+hooksecurefunc (GameTooltip, "SetMerchantItem",
+	function (tip, index)
+		local num = select(4, GetMerchantItemInfo(index));
+		ShowTipWithPricing  (tip, GetMerchantItemLink(index), num);
+	end
+);
 
 hooksecurefunc (GameTooltip, "SetLootItem",
 	function (tip, slot)
